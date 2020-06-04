@@ -1,7 +1,6 @@
-# Timeline Cases by City
+# Timeline of Clinical Cases by City/County in the Hampton Roads Region of VA
 
 # load dependencies
-
 library(dplyr)
 library(ggplot2)
 library(RCurl)
@@ -39,7 +38,7 @@ TL <-  filter(TL, date <= '2020-05-20')
 my_cols <- pals::kelly(13)[2:13]
 
 
-# Plot 1
+# Plot 1 - Total Clinical Cases by City
 
 T1 = ggplot(TL, aes(date, cases, group = county, color=county))+
   geom_line(size=1.2)+
@@ -54,4 +53,45 @@ T1 = ggplot(TL, aes(date, cases, group = county, color=county))+
   
 T1 
 
-# Plot 2
+# Plot 2 - Population-Normalized Cases by City
+
+# For this I've pulled in a CSV with the population of each city (which can easily be replicated for any cities),
+# joined those data to the original dataset and then divided each clinical case count by the corresponding city's population
+
+ities = read.csv('cities_populations.csv')
+
+TL$population = ''
+
+colnames(cities) = c('county', 'population')
+
+TL2 = inner_join(TL, cities, by = 'county' )
+
+TL2 = select(TL2, -state, -population.x)
+
+TL2$normalized = (TL2$cases / TL2$population.y)*100
+
+
+T2 = ggplot(TL2, aes(date, normalized, group = county, color=county))+
+  geom_line(size=1.2)+
+  theme_classic()+
+  theme(legend.position = 'null', panel.background = element_rect(fill = 'antiquewhite', color = 'black'))+
+  scale_x_date(breaks = '1 week', date_labels = "%b %d", expand = c(0.06, 0.6))+
+  labs(x = '', y = 'Confirmed Cases / City Population', subtitle = 'Population Normalized COVID-19 Cases')+
+  #annotate(geom = 'text', x=as.Date('2020-03-20') , y=150, label= paste('Regional Total as of\n Latest Reporting Date = ', total),  size = 5, fontface='bold' )+
+  scale_color_manual(values = my_cols) 
+
+
+# piece together with patchwork
+
+T3 = T1 / T2
+
+T3
+
+# add annotation noting data source and tag of 'a' and 'b' for each panel
+T3 + plot_annotation(caption = " Data Source: https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv ", tag_levels = 'a') 
+
+# save as TIFF to directory
+ggsave('Fig1.tiff', height = 10, width = 11)                   
+
+
+
