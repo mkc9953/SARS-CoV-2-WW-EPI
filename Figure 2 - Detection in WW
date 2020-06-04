@@ -1,0 +1,105 @@
+# dependencies
+
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(ggsci)
+
+
+
+#  Raw data for this figure include the following columns
+#       1. Date
+#       2. Treatment Facility
+#       3. Concentration of N1 Assay
+#       4. Detection of N1 Assay (pos or neg)
+#       5. Concentration of N2 Assay
+#       6. Detection of N2 Assay (pos or neg)   
+#       7. Concentration of N3 Assay
+#       8. Detection of N3 Assay (pos or neg)   
+#
+
+df_conc <- read.csv('CoV_conc_trimmed.csv')
+
+# columns with concentration data given simpler names
+df_conc <- rename(df_conc, Conc_N1 = N1, Conc_N2 = N2, Conc_N3 = N3)
+
+# pivot longer used to create long dataset for plotting
+df_conc <-  pivot_longer(df_conc, -c(Date, Plant),
+                         names_to = c(".value", "Assay"),
+                         names_sep = "_")
+
+# convert to class date
+df_conc$Date <- lubridate::mdy(df_conc$Date)
+
+
+# Filter to include detections only
+# This step can be omitted to include samples < limit of detection in plot
+df_no_NDs <- df_conc[df_conc$PN == 'Pos',]
+
+
+# dataframe of labels for annotating plot
+detections = c('Total Detections = 3', 'Total Detections = 4','Total Detections = 15', 'Total Detections = 11',
+               'Total Detections = 17', 'Total Detections = 10', 'Total Detections = 9', 
+               'Total Detections = 8', 'Total Detections = 13', 'Total Detections = 8', 'Total Detections = 18',
+               'Total Detections = 17')
+
+# total number of detections per sample date
+detect_vals = c(3, 4, 15, 11, 17, 10, 9, 8, 13, 8, 18, 17)
+
+detects = cbind.data.frame(Date, detections, detect_vals)
+
+# Plot 1 - Primary plot showing concentration of each detected assay by sample date
+
+P1 =ggplot(df_no_NDs, aes(Plant, Conc, color=Assay))+
+  geom_point(size = 3.35, alpha=0.7)+
+  scale_shape_manual(values = c(1, 16))+
+  scale_y_log10()+
+  labs(subtitle = 'SARS-CoV-2 Detection and Concentration by Assay',
+       x = '', y = expression(paste('Concentration', ' ', '(', 'Copies', ' ', 100, mL^-1,')') ) )+
+  guides(shape = F, size = F)+
+  theme_bw()+
+  scale_color_jco()+
+  theme(legend.position = "bottom", legend.justification = 'right',
+        legend.title = element_text(size = 14), legend.text = element_text(size = 12))+
+  geom_label(data = detects, aes(label=detections), x = Inf, y=Inf, 
+             inherit.aes = F, hjust=1, vjust=1)+
+  facet_wrap(~Date)
+
+# Plot 2 - Line Plot of total detections of all assays by date
+
+P2 = ggplot(detects, aes(Date, detect_vals, group = 1))+
+  geom_line(color="#CD534CFF", size = 1.5)+
+  theme_bw()+
+  labs(x = "", y = "Total Detections", subtitle = "Total Detections by Date")
+
+P2
+
+# Plot 3 - Line Plot of detections for each assay as 3 separate lines
+
+# csv of date, assay (N1, N2, N3) and corresponding number of detections
+detects2 = read.csv('detections_by_assay.csv') 
+
+# pivot longer for plotting
+detects2 = pivot_longer(detects2, values_to = "detections", names_to = 'assays', -Date)
+detects2$Date = lubridate::ymd(detects2$Date)
+
+P4 = ggplot(detects2, aes(Date, detections, group = assays, color=assays))+
+  geom_line(size = 1.5, alpha=0.65)+
+  theme_bw()+
+  theme(legend.position = 'null')+
+  labs(x = "", y = "Assay Detections", subtitle = 'Detection of Each Assay by Date')+
+  scale_color_jco()
+
+# Final figure combines all 3 plots using patchwork
+# plots 2 and 3 scaled down in size for better resolution of plot 1
+
+fig2 <- P1 / (P4 + P2)
+
+fig2 + plot_layout(nrow = 2, heights = c(3,1))
+
+# save to directory as TIFF
+ggsave('fig2_pop.TIFF', height = 10, width = 12)
+
+
