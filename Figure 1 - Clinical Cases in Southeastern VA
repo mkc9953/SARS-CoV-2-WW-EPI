@@ -1,0 +1,57 @@
+# Timeline Cases by City
+
+# load dependencies
+
+library(dplyr)
+library(ggplot2)
+library(RCurl)
+library(ggpubr)
+library(patchwork)
+library(pals)
+
+
+#first chunk pulls newest data from NY Times GitHub repo 
+
+newest_data = getURL("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+
+TL <-  read.csv(text = newest_data, header=T)
+
+# remove fips codes field
+TL = select(TL, -fips)
+
+# filter to get only VA data
+TL = filter(TL, state == 'Virginia')
+
+# filter again to get cities/counties in our region
+TL = filter(TL, county == 'Chesapeake city' | county == 'Hampton city' | county == 'Isle of Wight' | county == 'James City' |  
+              county == 'Newport News city' | county == 'Norfolk city' | county == 'Poquoson city' | county == 'Portsmouth city' |
+              county == 'Suffolk city' | county == 'Virginia Beach city' | county == 'Williamsburg city' | county == 'York')
+
+
+TL$date = lubridate::ymd(TL$date)
+
+
+#  use this filter to set dates to study range
+# remove to get up to date plot
+TL <-  filter(TL, date <= '2020-05-20')
+
+# pull out 12 colors from the kelly palette
+my_cols <- pals::kelly(13)[2:13]
+
+
+# Plot 1
+
+T1 = ggplot(TL, aes(date, cases, group = county, color=county))+
+  geom_line(size=1.2)+
+  theme_classic()+
+  theme(legend.position = c(0.14, 0.7), panel.background = element_rect(fill = 'antiquewhite', color = 'black'),
+        legend.background = element_blank())+
+  scale_x_date(breaks = '1 week', date_labels = "%b %d", expand = c(0.06, 0.6))+
+  labs(x = '', y = 'Confirmed Cases', subtitle = 'Confirmed COVID-19 Cases', color = 'City')+
+  guides(color=guide_legend(ncol = 2))+
+  #annotate(geom = 'text', x=as.Date('2020-03-20') , y=150, label= paste('Regional Total as of\n Latest Reporting Date = ', total),  size = 5, fontface='bold' )+
+  scale_color_manual(values = my_cols) 
+  
+T1 
+
+# Plot 2
