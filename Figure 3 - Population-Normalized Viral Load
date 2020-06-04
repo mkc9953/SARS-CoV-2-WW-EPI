@@ -1,0 +1,99 @@
+# This figure represents the total viral load to each treatment facility, normalized by that facility's catchment
+# population.  
+# The formula for this nomalization is as follows;
+
+#              [(CoV-2 Concentration in WW) * (WW flow at sample time)] / catchment area population
+
+# dependencies
+
+library(patchwork)
+library(dplyr)
+library(tidyr)
+library(ggplot)
+
+# Data for this figure include the following columns;
+#               1. Date
+#               2. Treatment Facility Name
+#               3. Viral load 
+#               4. Pos_Neg (was the initial wastewater greater than or less than the analytical LOD)
+
+
+fig3 <- read.csv('viral_load_per_pop.csv')
+
+colnames(fig3) <-  c('Date', 'Plant',"Load", 'PN')
+
+# log10 transform viral load data
+
+fig3$Load = log10(fig3$Load)
+
+
+# use filter to create 3 groups of 3 treatment facilities which will get patched together into 1 plot at the end
+
+C1 = filter(fig3, Plant == "AB" | Plant=="AT" | Plant == "CE")
+
+C2 = filter(fig3, Plant == "VIP" | Plant=="NP" | Plant == "BH")
+
+C3 = filter(fig3,  Plant=="JR" | Plant == "YR" | Plant == "WB")
+
+# convert all Date fields to class date 
+C1$Date = lubridate::ymd(C1$Date)
+C2$Date = lubridate::ymd(C2$Date)
+C3$Date = lubridate::ymd(C3$Date)
+
+# Plot 1
+
+C1_plot <- ggplot(C1, aes(Date,  Load))+
+  geom_line(size = 1.5, color='#868686FF', alpha=0.35)+
+  geom_point(aes(color=PN, shape=PN), alpha=0.85, size = 5)+
+  ylim(5, 7.25)+
+  scale_shape_manual(values = c(1, 16))+
+  scale_color_manual(values= c("#868686FF", "#4A6990FF"))+
+  theme_bw()+
+  theme(legend.position = 'none', strip.text.x = element_text(face = 'bold'), axis.text = element_text(size = 12))+
+  labs(x="", 
+       y = expression(paste('Population Normalized Viral Load (', log[10], ' ', 'copies', ' ', person^-1,')')))+
+  facet_wrap(~Plant, ncol = 1)
+
+C1_plot
+
+# Plot 2
+
+C2_plot <- ggplot(C2, aes(Date,  Load))+
+  geom_line(size = 1.5, color='#868686FF', alpha=0.35)+
+  geom_point(aes(color=PN, shape=PN),alpha=0.85, size = 5)+
+  ylim(5, 7.25)+
+  scale_shape_manual(values = c(1, 16))+
+  #scale_size_continuous(range = c(3,10))+
+  scale_color_manual(values= c("#868686FF", "#4A6990FF"))+
+  theme_bw()+
+  theme(legend.position = 'none', strip.text.x = element_text(face = 'bold'),  axis.text.x = element_text(size = 12), 
+        axis.text.y = element_blank(), axis.title.x = element_text(size = 12) )+
+  labs(x="", y = "")+
+  #scale_fill_jco()+
+  facet_wrap(~Plant, ncol = 1)
+
+C2_plot
+
+# Plot 3
+
+C3_plot <- ggplot(C3, aes(Date,  Load))+
+  geom_line(size = 1.5, color='#868686FF', alpha=0.35)+
+  geom_point(aes(color=PN, shape=PN),alpha=0.85, size = 5)+
+  ylim(5, 7.25)+
+  scale_shape_manual(values = c(1, 16))+
+  #scale_size_continuous(range = c(3,10))+
+  scale_color_manual(values= c("#868686FF", "#4A6990FF"))+
+  theme_bw()+
+  #theme(legend.position = 'none', strip.text.x = element_text(face = 'bold'), axis.text = element_text(size = 14))+
+  theme(legend.position = 'none', strip.text.x = element_text(face = 'bold'),  axis.text.x = element_text(size = 12), 
+        axis.text.y = element_blank(), axis.title.x = element_text(size = 14) )+
+  labs(x="", y = '')+
+  #scale_fill_jco()+
+  facet_wrap(~Plant, ncol = 1)
+
+
+# arrange into 3x3 grid of panels using patchwork
+C1_plot + C2_plot + C3_plot + plot_annotation(title = "SARS-CoV-2 Viral Load Per WWTP Catchment Population")
+
+# save as TIFF
+ggsave('Fig3.tiff', height = 8, width = 11.5)
