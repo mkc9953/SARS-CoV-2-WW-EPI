@@ -1,0 +1,25 @@
+
+# The intent of this simple figure is to give an approximation of the population-normalized viral load for entire region
+# being serviced by the 9 wastewater treatment facilities sampled for this study.
+# This is accomplished by determining total viral load for a sample date (sum of (concentration * flow) for each of the 9 WWTP's) divided
+# by the population of the region.
+# The goal here is to create a rough estimate so that trends can be observed (e.g. increasing load during the onset of an epidemic, 
+# decreasing load after social interventions are applied).
+
+
+# The data for this file included the columns; "Date" and "Load", where aggregated load has already been calculated as described above.
+
+df8 <- read.csv("fig5_load.csv")
+
+# convert to class date
+df8$Date <- lubridate::ymd(df8$Date)             
+
+# log10 transform for plotting
+#df8$Load <- log10(df8$Load)
+
+ggplot(df8, aes(Date, Load))+
+  geom_line(color='#4A6990FF', group=1, size = 2, alpha=.9)+
+  theme_bw()+
+  labs(x = '', subtitle = "Regional Viral Load Per Population", y = 'Population Normalized Viral Load all WWTPs')
+
+ggsave('Fig5.tiff', height = 7, width = 9)
