@@ -7,6 +7,11 @@
 # decreasing load after social interventions are applied).
 
 
+# dependencies
+
+library(ggplot)
+
+
 # The data for this file included the columns; "Date" and "Load", where aggregated load has already been calculated as described above.
 
 df8 <- read.csv("fig5_load.csv")
