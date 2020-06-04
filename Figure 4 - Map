@@ -1,0 +1,76 @@
+
+# This figure takes population normalized viral load data (generated using the equation described in the Figure 3 file) and plot
+# those values based on shapefiles of the treatment plant catchment boundaries.
+# To recreate this figure an MXD of similar boundaries would be necessary.
+
+# dependencies
+
+library(dplyr)
+library(ggthemes)
+library(sf)
+library(maps)
+library(mapdata)
+library(ggplot)
+library(wesanderson)
+
+# import catchment boundaries
+catches <- st_read("C:/Users/kcurtis/Desktop/SARS_CoV2/catchments/merged/TP_SA_merge.shp")
+
+
+#keep only relevant columns from service area layer
+cats1 = select(catches, TP_EXISTIN, geometry)
+
+
+#  Now read in df with viral load by treatment facility service area
+Cases <- read.csv('map_cases_load.csv', na.strings = '')
+
+
+# log10 transform 
+Cases$load <- log10(Cases$load)
+
+
+# Convert to class date
+Cases$date <- lubridate::ymd(Cases$date)
+
+# Optional filter to omit dates
+Cases <- filter(Cases, date< '2020-04-17' | date> '2020-04-17')
+
+
+#join into single df for plotting
+wks_all <- inner_join(cats1, Cases, by = "TP_EXISTIN")
+
+
+# get base map of region to plot catchments and load data over
+counties <-  map_data('county')
+va_counties <-  subset(counties, region == 'virginia')
+
+
+va3 = st_as_sf(map('county', plot=F, fill=T )) 
+va3 = subset(va3, grepl('virginia', va3$ID))
+
+
+# custom color scale
+pal <- wes_palette("Zissou1", 100, type = "continuous")
+
+
+# Plot
+# theme_map not necessary but gives nice defaults for layout
+
+ggplot(va3)+
+  geom_sf(color='grey30', fill='antiquewhite')+
+  geom_sf(data=wks_all, aes(fill = load), alpha=0.80)+
+  scale_fill_gradientn(colors = pal, trans = 'log10')+
+  coord_sf(xlim = c( -77, -75.75), ylim = c(36.6, 37.5), expand = F)+
+  labs(subtitle = "SARS-CoV-2: Viral Load by WWTP Catchment", fill = expression(paste(Log[10], " ", 'Viral Load')))+
+  facet_wrap(~date)+
+  theme_map()+
+  theme(strip.text = element_text(face="bold", size=9),
+        strip.background = element_rect(fill="aliceblue", colour="black"),
+        panel.spacing = unit(0.5, 'lines'), legend.position = "bottom", legend.direction = 'horizontal',
+        panel.border = element_rect(colour = 'black', fill=NA),
+        plot.title = element_text(size = 14))+
+  guides(fill = guide_colorbar(barwidth = 12, barheight = 1))
+
+
+ggsave('Fig4.tiff', height = 9, width = 11)
+
