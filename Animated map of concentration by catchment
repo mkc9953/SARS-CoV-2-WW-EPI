@@ -32,7 +32,8 @@ library(transformr)
 # Load catchment boundaries from shapefile
 # Catchment boundaries represent the spatial area serviced by a WWTP
 # The WWTP name associated with the catchment boundary will need to match the WWTP name used to assign viral load data to it later
-# Use st_read() from the sf package
+
+# Use st_read() from the sf package to import shapefiles
 
 catches <- st_read("C:/Users/kcurtis/Desktop/SARS_CoV2/catchments/merged/TP_SA_merge.shp")
 
