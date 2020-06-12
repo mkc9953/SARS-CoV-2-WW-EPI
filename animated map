@@ -1,0 +1,115 @@
+# Animated SARS-CoV-2 total viral load for southeast VA during the first ~3 months of detection in the area
+
+# this code creates and animates a map of total SARS-CoV-2 viral load (concentration in wastewater * flow at sample time) normalized
+# by the population of WWTP's catchment.  
+# the map has 3 components;
+#                       1. a base map of the region - created using the maps package
+#                       2. the catchment boundaries - imported shapefiles from our company's GIS dept.
+#                       3. viral load data          - generated from our 9 WWTP facilities
+#
+# the animation is made using the gganimate package
+
+
+# dependent packages
+
+library(ggplot2)
+library(ggthemes)
+library(sf)
+library(stringr)
+library(maps)
+library(mapdata)
+library(wesanderson)
+library(dplyr)
+library(tidyr)
+library(ggpubr)
+library(RCurl)
+library(pals)
+library(gganimate)
+library(transformr) 
+
+#transformr needed to animate sf objects
+
+# Load catchment boundaries from shapefile
+# Catchment boundaries represent the spatial area serviced by a WWTP
+# The WWTP name associated with the catchment boundary will need to match the WWTP name used to assign viral load data to it later
+# Use st_read() from the sf package
+
+catches <- st_read("C:/Users/kcurtis/Desktop/SARS_CoV2/catchments/merged/TP_SA_merge.shp")
+
+
+#keep only relevant columns from service area layer
+
+cats1 = select(catches, TP_EXISTIN, geometry)
+
+
+#  Now read in df with cases by tp
+#  These data include a date, WWTP name, and associated viral load
+
+Cases <- read.csv('map_cases_load.csv', na.strings = '')
+
+
+# log10 transformed for more legible plotting
+
+Cases$load <- log10(Cases$load)
+
+
+# Ensure date field is of class date
+
+Cases$date <- lubridate::ymd(Cases$date)
+
+
+
+# Join shapefile of catchments and viral load data along WWTP name into single df for plotting
+
+wks_all <- inner_join(cats1, Cases, by = "TP_EXISTIN")
+
+
+
+# get base map of region
+
+counties <-  map_data('county')
+va_counties <-  subset(counties, region == 'virginia')
+
+
+va3 = st_as_sf(map('county', plot=F, fill=T )) 
+va3 = subset(va3, grepl('virginia', va3$ID))
+
+
+# custom color scale
+
+pal <- wes_palette("Zissou1", 100, type = "continuous")
+
+
+# **** Map w/ Animation *****
+
+
+SARS2 <- ggplot()+
+  geom_sf(data = va3, color='grey30', fill='antiquewhite')+
+  geom_sf(data=wks_all, aes(fill = load), alpha=.80)+
+  scale_fill_gradientn(colors = pal)+
+  coord_sf(xlim = c( -77, -75.75), ylim = c(36.6, 37.5), expand = F)+
+  labs(title = "SARS-CoV-2 Viral Load by TP Catchment Population", fill = expression(paste(Log[10], ' ', 'Viral Load')), 
+       subtitle = 'Date: {frame_time}')+
+  #facet_wrap(~date)+
+  theme_map()+
+  theme(plot.subtitle = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 12),
+        strip.background = element_rect(fill="aliceblue", colour="black"),
+        panel.border = element_rect(colour = 'black', fill=NA),
+        legend.position = 'bottom',
+        plot.title = element_text(size = 16))+
+  guides(fill = guide_colorbar(barwidth = 12, barheight = 1))+
+  transition_time(date)
+  
+
+# using animate function you can specify the transition speed in frames per second (fps)
+
+SARS2_slower <- animate(SARS2, fps = 5)
+
+SARS2_slower
+
+
+# save to directory
+
+anim_save('SARS2_slower.gif')
